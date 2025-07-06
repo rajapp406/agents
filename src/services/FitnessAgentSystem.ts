@@ -3,6 +3,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { JsonOutputParser } from "@langchain/core/output_parsers";
 import { AgentType, UserProfile, AgentState, FitnessAgentConfig, WorkoutPlan } from "../types";
+import { runWorkflow } from "../agents/workoutAgent";
 import { AzureOpenAI } from "openai";
 
 declare global {
@@ -117,62 +118,68 @@ export class FitnessAgentSystem {
       const systemPrompt = await this.getAgentPrompt(agentType);
       
       // Create a simple prompt template
-      const prompt = `
-        ${systemPrompt}
+      const userLimitations = userProfile.limitations?.length 
+        ? userProfile.limitations.join(', ')
+        : 'None';
+        
+      const prompt = [
+        systemPrompt,
+        '',
+        '### User Profile ###',
+        `- Fitness Level: ${userProfile.fitnessLevel}`,
+        `- Goals: ${userProfile.goals.join(', ')}`,
+        `- Limitations: ${userLimitations}`,
+        `- Preferences: ${JSON.stringify(userProfile.preferences, null, 2)}`,
+        `- Current Stats: ${JSON.stringify(userProfile.currentStats, null, 2)}`,
+        '',
+        '### Context ###',
+        JSON.stringify(context, null, 2),
+        '',
+        '### Task ###',
+        'Please generate a personalized workout plan in the following JSON format:',
+        JSON.stringify({
+          name: 'string',
+          description: 'string',
+          durationWeeks: 'number',
+          daysPerWeek: 'number',
+          workouts: [{
+            day: 'string',
+            name: 'string',
+            description: 'string',
+            exercises: [{
+              name: 'string',
+              sets: 'number',
+              reps: 'string',
+              rest: 'string',
+              notes: 'string'
+            }]
+          }]
+        }, null, 2)
+      ].join('\n');
 
-          ### User Profile ###
-        - Fitness Level: ${userProfile.fitnessLevel}
-        - Goals: ${userProfile.goals.join(', ')}
-        - Limitations: ${userProfile.limitations.join(', ') || 'None'}
-        - Preferences: ${JSON.stringify(userProfile.preferences, null, 2)}
-        - Current Stats: ${JSON.stringify(userProfile.currentStats, null, 2)}
-          
-          ### Context ###
-        ${JSON.stringify(context, null, 2)}
-          
-        Please provide a detailed workout plan in the following JSON format:
-        {
-          "exercises": [
-            {
-              "name": "Exercise Name",
-              "sets": 3,
-              "reps": "10-12",
-              "duration": null,
-              "notes": "Any specific instructions"
-            }
-          ],
-          "duration": 45,
-          "intensity": "moderate",
-          "restPeriods": [30, 60],
-          "progressionNotes": "How to progress this workout"
-        }
-      `;
-      
-      // Call the LLM with the prompt
-      const messages = [
-        new SystemMessage(systemPrompt),
-        new HumanMessage(prompt)
-      ];
-      
-      // Get the response from AzureChatOpenAI
-      const response = await this.llm.invoke(messages);
+      // Get the response from the language model
+      const response = await this.llm.invoke(prompt);
       
       // Parse the response
       let parsedResponse: any;
       try {
-        // The response is an AIMessageChunk object, get the content
-        const content = typeof response.content === 'string' ? response.content : '';
+        // The response might already be an object or a string
+        if (typeof response === 'string') {
+          parsedResponse = JSON.parse(response);
+        } else if (response && typeof response === 'object') {
+          parsedResponse = response;
+        } else {
+          throw new Error('Invalid response format');
+        }
         
-        // Try to extract JSON from the response content
-        const jsonMatch = content.match(/```(?:json)?\n([\s\S]*?)\n```/) || [null, content];
-        const jsonStr = jsonMatch[1] || jsonMatch[0] || '{}';
-        
-        // Parse the JSON string
-        parsedResponse = JSON.parse(jsonStr);
+        // If we have a plan in the response, use that
+        if (parsedResponse.plan) {
+          parsedResponse = parsedResponse.plan;
+        }
       } catch (parseError) {
-        console.error('Error parsing LLM response:', parseError);
-        console.error('Raw response content:', response.content);
-        throw new Error('Failed to parse the response from the AI service');
+        console.error('Error parsing agent response:', parseError);
+        console.error('Raw response content:', response);
+        throw new Error('Failed to parse the response from the agent');
       }
 
       // Ensure the response has the correct structure
@@ -210,17 +217,17 @@ export class FitnessAgentSystem {
     }
   }
 
-  // Add specific agent methods here
+  // Generate a workout plan using the agent
   public async generateWorkoutPlan(
     userProfile: UserProfile,
     context: Record<string, any> = {}
   ): Promise<WorkoutPlan> {
-    const response = await this.processRequest(
-      AgentType.WORKOUT_PLANNER,
-      userProfile,
-      { ...context, task: 'generate_workout_plan' }
-    );
-    
-    return response as WorkoutPlan;
+    try {
+      const response = await this.processRequest(AgentType.WORKOUT_PLANNER, userProfile, context);
+      return response as WorkoutPlan;
+    } catch (error) {
+      console.error('Error generating workout plan:', error);
+      throw new Error('Failed to generate workout plan');
+    }
   }
 }

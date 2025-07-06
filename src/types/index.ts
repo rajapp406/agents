@@ -26,7 +26,7 @@ export interface WorkoutPlan {
   exercises: Array<{
     name: string;
     sets: number;
-    reps: number | string;
+    reps: number | string | any;
     notes?: string;
     [key: string]: any;
   }>;

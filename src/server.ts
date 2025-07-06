@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction, RequestHandler, ErrorRequestH
 import { body, validationResult } from 'express-validator';
 import { FitnessAgentSystem } from './services/FitnessAgentSystem';
 import { AgentType, UserProfile, WorkoutPlan } from './types';
+import { createWorkoutAgent } from './agents/workoutAgent';
 import dotenv from 'dotenv';
 import winston from 'winston';
 import swaggerJsdoc from 'swagger-jsdoc';
@@ -297,6 +298,77 @@ const errorHandler: ErrorRequestHandler = (err: Error, _req: Request, res: Respo
     message: err.message
   });
 };
+
+/**
+ * @openapi
+ * /api/chat:
+ *   post:
+ *     summary: Chat with the fitness agent
+ *     description: Send a message to the fitness agent and get a response
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: The message to send to the agent
+ *               chatHistory:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     content:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: The agent's response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 response:
+ *                   type: string
+ *       400:
+ *         description: Invalid input
+ *       500:
+ *         description: Server error
+ */
+app.post('/api/chat', async (req: Request, res: Response) => {
+  try {
+    const { message, chatHistory = [] } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const executor = await createWorkoutAgent();
+    const result = await executor.invoke({
+      input: message,
+      chat_history: chatHistory,
+    });
+
+    res.json({ 
+      response: result.output,
+      chatHistory: [
+        ...chatHistory,
+        { role: 'user', content: message },
+        { role: 'assistant', content: result.output }
+      ]
+    });
+  } catch (error) {
+    logger.error('Error in chat endpoint:', error);
+    res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
 
 app.use(errorHandler);
 
