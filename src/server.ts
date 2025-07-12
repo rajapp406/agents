@@ -8,7 +8,7 @@ import winston from 'winston';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { parstLLMJSON } from './utils/common.util';
-
+import workoutPlanData from '../workout_plan.json';
 declare module 'express-serve-static-core' {
   interface Request {
     user?: any;
@@ -346,16 +346,6 @@ const errorHandler: ErrorRequestHandler = (err: Error, _req: Request, res: Respo
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
-    const chatHistory = [
-      {
-        "role": "system",
-        "content": "You are a certified fitness coach and nutrition expert. Based on the following user profile, generate a personalized and progressive fitness plan that evolves weekly. The plan should include daily workouts, rest days, and recommendations for intensity, types of exercises, and brief rationale behind the progression. Adjust the plan weekly based on fitness goals and performance metrics. Generate a personalized workout plan for today. Include warm-up and cool-down if necessary. Ensure the plan is progressive and considers the weekly goal split. Output in the JSON format as shown below:\n\n{\n  \"date\": \"2025-07-12\",\n  \"day\": \"Day 3 of Week 2\",\n  \"workout_type\": \"Strength Training\",\n  \"focus_area\": \"Upper Body\",\n  \"exercises\": [\n    {\n      \"name\": \"Shoulder Press\",\n      \"sets\": 3,\n      \"reps\": \"10-12\",\n      \"rest\": \"60s\",\n      \"equipment\": \"Dumbbells\"\n    },\n    {\n      \"name\": \"Bent-over Row\",\n      \"sets\": 3,\n      \"reps\": \"12-15\",\n      \"rest\": \"60s\",\n      \"equipment\": \"Dumbbells\"\n    }\n  ],\n  \"duration\": \"40 minutes\",\n  \"intensity\": \"Moderate\",\n  \"notes\": \"Focus on form, keep core engaged\"\n}"
-    },
-    {
-        "role": "user",
-        "content": "User Profile: Age: 40 Gender: Male Fitness Level: Intermediate Fitness Goals: weight loss, muscle gain, strength Preferred Workouts: gym Workout Frequency: 5 days/week Include: Weekly plan with daily breakdown Progressive overload strategy (if applicable) Rest and recovery days Optional: nutrition tips aligned with fitness goals Adjustments or checkpoints after each week"
-    }
-    ];
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
@@ -363,14 +353,17 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const executor = await createWorkoutAgent();
     const result = await executor.invoke({
       input: message,
-      chat_history: chatHistory,
+      chat_history: []
     });
 
-    const workoutPlan = parstLLMJSON(result.output);
+    let workoutPlan = parstLLMJSON(result.output);
+    console.log(result.output);
+    if(!workoutPlan){
+      workoutPlan = workoutPlanData;
+    }
     res.json({ 
       response: workoutPlan,
       chatHistory: [
-        ...chatHistory,
         { role: 'user', content: message },
         { role: 'assistant', content: result.output }
       ]

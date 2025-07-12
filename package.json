@@ -8,7 +8,8 @@
     "start": "nodemon src/index.ts",
     "dev": "ts-node-dev --respawn --transpile-only --esm src/index.ts",
     "test": "jest",
-    "test:youtube": "NODE_OPTIONS='--loader ts-node/esm' node src/testYoutubeAgent.ts",
+    "test:workout": "ts-node src/testAgent.ts",
+    "test:youtube": "ts-node src/testYoutubeAgent.ts",
     "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build"
   },
