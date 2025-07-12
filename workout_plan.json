@@ -1,0 +1,63 @@
+{
+  "date": "2025-07-12",
+  "day": "Day 1 of Week 1",
+  "workout_type": "Strength Training",
+  "focus_area": "Lower Body",
+  "exercises": [
+    {
+      "name": "Barbell Squats",
+      "sets": 4,
+      "reps": "8-10",
+      "rest": "90s",
+      "equipment": "Barbell"
+    },
+    {
+      "name": "Deadlifts",
+      "sets": 4,
+      "reps": "6-8",
+      "rest": "2 mins",
+      "equipment": "Barbell"
+    },
+    {
+      "name": "Leg Press",
+      "sets": 3,
+      "reps": "10-12",
+      "rest": "90s",
+      "equipment": "Leg Press Machine"
+    },
+    {
+      "name": "Walking Lunges",
+      "sets": 3,
+      "reps": "12 steps per leg",
+      "rest": "60s",
+      "equipment": "Dumbbells"
+    }
+  ],
+  "warm_up": [
+    {
+      "name": "Dynamic Stretching",
+      "duration": "5 minutes"
+    },
+    {
+      "name": "Bodyweight Squats",
+      "duration": "2 sets of 15 reps"
+    }
+  ],
+  "cool_down": [
+    {
+      "name": "Hamstring Stretch",
+      "duration": "30 seconds per leg"
+    },
+    {
+      "name": "Quad Stretch",
+      "duration": "30 seconds per leg"
+    },
+    {
+      "name": "Child's Pose",
+      "duration": "1 minute"
+    }
+  ],
+  "duration": "60 minutes",
+  "intensity": "Moderate to High",
+  "notes": "Focus on controlled movements and proper form, especially during squats and deadlifts."
+}

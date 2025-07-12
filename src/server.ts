@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction, RequestHandler, ErrorRequestHandler } from 'express';
+import express, { Request, Response, NextFunction, RequestHandler, ErrorRequestHandler, Express } from 'express';
 import { body, validationResult } from 'express-validator';
 import { FitnessAgentSystem } from './services/FitnessAgentSystem';
 import { AgentType, UserProfile, WorkoutPlan } from './types';
@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import winston from 'winston';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { parstLLMJSON } from './utils/common.util';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -84,7 +85,7 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Initialize Express app
-const app = express();
+export const app: Express = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
@@ -344,8 +345,17 @@ const errorHandler: ErrorRequestHandler = (err: Error, _req: Request, res: Respo
  */
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
-    const { message, chatHistory = [] } = req.body;
-    
+    const { message } = req.body;
+    const chatHistory = [
+      {
+        "role": "system",
+        "content": "You are a certified fitness coach and nutrition expert. Based on the following user profile, generate a personalized and progressive fitness plan that evolves weekly. The plan should include daily workouts, rest days, and recommendations for intensity, types of exercises, and brief rationale behind the progression. Adjust the plan weekly based on fitness goals and performance metrics. Generate a personalized workout plan for today. Include warm-up and cool-down if necessary. Ensure the plan is progressive and considers the weekly goal split. Output in the JSON format as shown below:\n\n{\n  \"date\": \"2025-07-12\",\n  \"day\": \"Day 3 of Week 2\",\n  \"workout_type\": \"Strength Training\",\n  \"focus_area\": \"Upper Body\",\n  \"exercises\": [\n    {\n      \"name\": \"Shoulder Press\",\n      \"sets\": 3,\n      \"reps\": \"10-12\",\n      \"rest\": \"60s\",\n      \"equipment\": \"Dumbbells\"\n    },\n    {\n      \"name\": \"Bent-over Row\",\n      \"sets\": 3,\n      \"reps\": \"12-15\",\n      \"rest\": \"60s\",\n      \"equipment\": \"Dumbbells\"\n    }\n  ],\n  \"duration\": \"40 minutes\",\n  \"intensity\": \"Moderate\",\n  \"notes\": \"Focus on form, keep core engaged\"\n}"
+    },
+    {
+        "role": "user",
+        "content": "User Profile: Age: 40 Gender: Male Fitness Level: Intermediate Fitness Goals: weight loss, muscle gain, strength Preferred Workouts: gym Workout Frequency: 5 days/week Include: Weekly plan with daily breakdown Progressive overload strategy (if applicable) Rest and recovery days Optional: nutrition tips aligned with fitness goals Adjustments or checkpoints after each week"
+    }
+    ];
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
@@ -356,8 +366,9 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       chat_history: chatHistory,
     });
 
+    const workoutPlan = parstLLMJSON(result.output);
     res.json({ 
-      response: result.output,
+      response: workoutPlan,
       chatHistory: [
         ...chatHistory,
         { role: 'user', content: message },
@@ -372,10 +383,17 @@ app.post('/api/chat', async (req: Request, res: Response) => {
 
 app.use(errorHandler);
 
-// Start server
-app.listen(port, () => {
-  logger.info(`Server running on port ${port}`);
-  console.log(`Server is running on http://localhost:${port}`);
-});
+// Export a function to start the server
+export const startServer = (): void => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+    logger.info(`Server is running on port ${port}`);
+  });
+};
+
+// Start the server if this file is run directly
+if (require.main === module) {
+  startServer();
+}
 
 export default app;

@@ -8,7 +8,7 @@ const DEFAULT_CONFIG: Omit<ChatGPTConfig, 'azureOpenAIApiKey' | 'azureOpenAIBase
   model: "gpt-4o",
   azureOpenAIApiVersion: '2023-12-01-preview',
   temperature: 0.7,
-  maxTokens: 1000
+  maxTokens: 10000
 } as const;
 
 export class ChatGPT {

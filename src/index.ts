@@ -1,6 +1,10 @@
-import './server';
+import { startServer } from './server';
+import dotenv from 'dotenv';
 
-// This file serves as the entry point for the application
-// The server is started by importing the server.ts file which creates and starts the Express server
+// Load environment variables
+dotenv.config();
 
 console.log('Fitness Agents Service starting...');
+
+// Start the server
+startServer();
